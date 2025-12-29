@@ -1,0 +1,109 @@
+import { useState, useEffect, useCallback } from "react";
+import { Wishlist } from "@/entities/Wishlist";
+import { User } from "@/entities/User";
+import { Button } from "@/components/ui/button";
+import { Heart } from "lucide-react";
+import { motion } from "framer-motion";
+
+export default function WishlistButton({ propertyId, className = "" }) {
+  const [isWishlisted, setIsWishlisted] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [user, setUser] = useState(null);
+
+  const checkWishlistStatus = useCallback(async () => {
+    try {
+      const userData = await User.me();
+      setUser(userData);
+      
+      const wishlists = await Wishlist.filter({
+        property_id: propertyId,
+        user_email: userData.email
+      });
+      
+      setIsWishlisted(wishlists.length > 0);
+    } catch (error) {
+      setUser(null);
+      setIsWishlisted(false);
+    }
+  }, [propertyId]);
+
+  useEffect(() => {
+    checkWishlistStatus();
+  }, [checkWishlistStatus]);
+
+  const handleToggleWishlist = async (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    
+    // Check if user is authenticated
+    if (!user) {
+      const shouldLogin = confirm("You need to sign in to add properties to your wishlist. Would you like to sign in now?");
+      if (shouldLogin) {
+        try {
+          await User.loginWithRedirect(window.location.href);
+        } catch (error) {
+          console.error("Login redirect error:", error);
+        }
+      }
+      return;
+    }
+
+    setLoading(true);
+    
+    try {
+      if (isWishlisted) {
+        // Remove from wishlist
+        const wishlists = await Wishlist.filter({
+          property_id: propertyId,
+          user_email: user.email
+        });
+        
+        if (wishlists.length > 0) {
+          await Wishlist.delete(wishlists[0].id);
+          setIsWishlisted(false);
+        }
+      } else {
+        // Add to wishlist
+        await Wishlist.create({
+          property_id: propertyId,
+          user_email: user.email
+        });
+        setIsWishlisted(true);
+      }
+    } catch (error) {
+      console.error("Error toggling wishlist:", error);
+      alert("Error updating wishlist. Please try again.");
+    }
+    
+    setLoading(false);
+  };
+
+  return (
+    <Button
+      variant="ghost"
+      size="icon"
+      onClick={handleToggleWishlist}
+      disabled={loading}
+      className={`transition-all duration-300 ${className}`}
+      title={!user ? "Sign in to add to wishlist" : isWishlisted ? "Remove from wishlist" : "Add to wishlist"}
+    >
+      <motion.div
+        animate={{ 
+          scale: isWishlisted ? [1, 1.3, 1] : 1,
+          rotate: isWishlisted ? [0, -10, 10, 0] : 0
+        }}
+        transition={{ duration: 0.3 }}
+      >
+        <Heart 
+          className={`w-5 h-5 transition-colors duration-300 ${
+            isWishlisted 
+              ? 'fill-red-500 text-red-500' 
+              : user 
+                ? 'text-gray-600 hover:text-red-500'
+                : 'text-gray-400'
+          }`} 
+        />
+      </motion.div>
+    </Button>
+  );
+}

@@ -1,0 +1,261 @@
+
+import { useState, useEffect } from "react";
+import { User } from "@/entities/User";
+import { Property } from "@/entities/Property"; // Import Property entity
+import { Button } from "@/components/ui/button";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+  DropdownMenuGroup, // Added DropdownMenuGroup
+} from "@/components/ui/dropdown-menu";
+import { Badge } from "@/components/ui/badge";
+import {
+  Building,
+  Heart,
+  LogIn,
+  LogOut,
+  Settings,
+  Bell,
+  Search,
+  PlusCircle, // Added PlusCircle icon
+  MapPin // Added MapPin icon
+} from "lucide-react";
+import { Link } from "react-router-dom";
+import { createPageUrl } from "@/utils";
+import { formatDistanceToNow } from 'date-fns'; // Added date-fns import
+
+export default function Navbar() {
+  const [user, setUser] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [newProperties, setNewProperties] = useState([]); // State for new properties
+
+  useEffect(() => {
+    checkAuth();
+    fetchNotifications(); // Call fetchNotifications on component mount
+  }, []);
+
+  const fetchNotifications = async () => {
+    try {
+      // Fetch top 5 recent properties to display as notifications
+      const allProperties = await Property.list("-created_date", 5); 
+      setNewProperties(allProperties);
+    } catch (error) {
+      console.error("Error fetching new properties for notifications:", error);
+      setNewProperties([]); // Reset on error
+    }
+  };
+
+  const checkAuth = async () => {
+    try {
+      const userData = await User.me();
+      setUser(userData);
+    } catch (error) {
+      setUser(null);
+    }
+    setLoading(false);
+  };
+
+  const handleLogin = async () => {
+    try {
+      await User.loginWithRedirect(window.location.href);
+    } catch (error) {
+      console.error("Login error:", error);
+    }
+  };
+
+  const handleLogout = async () => {
+    try {
+      await User.logout();
+      setUser(null);
+    } catch (error) {
+      console.error("Logout error:", error);
+    }
+  };
+
+  const getUserInitials = (name) => {
+    if (!name) return "U";
+    return name.split(" ").map(n => n[0]).join("").toUpperCase().slice(0, 2);
+  };
+
+  return (
+    <nav className="fixed top-0 left-0 right-0 z-50 bg-white/95 backdrop-blur-md border-b border-gray-100 shadow-sm">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="flex items-center justify-between h-16">
+          {/* Logo */}
+          <Link to={createPageUrl("Search")} className="flex items-center gap-3 group">
+            <div className="w-10 h-10 bg-gradient-to-r from-sky-500 to-sky-600 rounded-xl flex items-center justify-center shadow-md group-hover:shadow-lg transition-all duration-300">
+              <Building className="w-5 h-5 text-white" />
+            </div>
+            <div className="hidden sm:block">
+              <h1 className="text-xl font-bold bg-gradient-to-r from-sky-500 to-sky-600 bg-clip-text text-transparent">
+                StayNearU
+              </h1>
+            </div>
+          </Link>
+
+          {/* Navigation Links */}
+          <div className="hidden md:flex items-center space-x-8">
+            <Link
+              to={createPageUrl("Search")}
+              className="text-gray-700 hover:text-sky-600 font-medium transition-colors flex items-center gap-2"
+            >
+              <Search className="w-4 h-4" />
+              Find Properties
+            </Link>
+            <Link
+              to="/nearby-essentials"
+              className="text-gray-700 hover:text-sky-600 font-medium transition-colors flex items-center gap-2"
+            >
+              <MapPin className="w-4 h-4" />
+              Nearby Services
+            </Link>
+            <Link
+              to={createPageUrl("AdminDashboard")}
+              className="text-gray-700 hover:text-sky-600 font-medium transition-colors flex items-center gap-2"
+            >
+              <PlusCircle className="w-4 h-4" /> {/* Changed icon to PlusCircle */}
+              List Your Property {/* Changed text */}
+            </Link>
+          </div>
+
+          {/* Right Side Actions */}
+          <div className="flex items-center space-x-4">
+            {/* Wishlist */}
+            {user && (
+              <Link to={createPageUrl("Wishlist")}>
+                <Button variant="ghost" size="icon" className="relative">
+                  <Heart className="w-5 h-5 text-gray-600" />
+                </Button>
+              </Link>
+            )}
+
+            {/* Notifications */}
+            {user && (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" size="icon" className="relative">
+                    <Bell className="w-5 h-5 text-gray-600" />
+                    {newProperties.length > 0 && (
+                      <Badge
+                        variant="secondary"
+                        className="absolute -top-2 -right-2 h-5 w-5 flex items-center justify-center p-0 bg-red-500 text-white text-xs"
+                      >
+                        {newProperties.length}
+                      </Badge>
+                    )}
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent className="w-80" align="end">
+                  <DropdownMenuLabel>New Properties</DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuGroup>
+                    {newProperties.length > 0 ? (
+                      newProperties.map(property => (
+                        <Link key={property.id} to={createPageUrl(`PropertyDetails?id=${property.id}`)}>
+                          <DropdownMenuItem className="cursor-pointer gap-3 p-2">
+                            {property.photos && property.photos[0] ? (
+                               <img src={property.photos[0]} alt={property.title} className="w-12 h-12 object-cover rounded-md" />
+                            ) : (
+                                <div className="w-12 h-12 bg-gray-100 rounded-md flex items-center justify-center">
+                                    <MapPin className="w-5 h-5 text-gray-400" />
+                                </div>
+                            )}
+                            <div className="flex-1">
+                              <p className="font-semibold text-sm truncate">{property.title}</p>
+                              <p className="text-xs text-gray-500">{property.city}</p>
+                              <p className="text-xs text-gray-500 mt-1">{formatDistanceToNow(new Date(property.created_date), { addSuffix: true })}</p>
+                            </div>
+                          </DropdownMenuItem>
+                        </Link>
+                      ))
+                    ) : (
+                      <DropdownMenuItem disabled>No new properties recently.</DropdownMenuItem>
+                    )}
+                  </DropdownMenuGroup>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            )}
+
+            {/* Authentication */}
+            {loading ? (
+              <div className="w-8 h-8 bg-gray-200 rounded-full animate-pulse"></div>
+            ) : user ? (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" className="relative h-10 w-10 rounded-full">
+                    <Avatar className="h-10 w-10 border-2 border-sky-100">
+                      <AvatarImage src={user.profile_photo} alt={user.full_name} />
+                      <AvatarFallback className="bg-gradient-to-r from-sky-500 to-sky-600 text-white font-semibold">
+                        {getUserInitials(user.full_name)}
+                      </AvatarFallback>
+                    </Avatar>
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent className="w-64" align="end" forceMount>
+                  <DropdownMenuLabel className="font-normal">
+                    <div className="flex flex-col space-y-2">
+                      <div className="flex items-center gap-3">
+                        <Avatar className="h-10 w-10">
+                          <AvatarImage src={user.profile_photo} />
+                          <AvatarFallback className="bg-gradient-to-r from-sky-500 to-sky-600 text-white">
+                            {getUserInitials(user.full_name)}
+                          </AvatarFallback>
+                        </Avatar>
+                        <div className="flex flex-col">
+                          <p className="text-sm font-medium leading-none">{user.full_name}</p>
+                          <p className="text-xs leading-none text-muted-foreground mt-1">
+                            {user.email}
+                          </p>
+                        </div>
+                      </div>
+                      <Badge variant="secondary" className="w-fit">
+                        {user.role === 'admin' ? 'Property Owner' : 'Student'}
+                      </Badge>
+                    </div>
+                  </DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+                  <Link to={createPageUrl("Profile")}>
+                    <DropdownMenuItem className="cursor-pointer">
+                      <Settings className="mr-2 h-4 w-4" />
+                      Profile Settings
+                    </DropdownMenuItem>
+                  </Link>
+                  <Link to={createPageUrl("Wishlist")}>
+                    <DropdownMenuItem className="cursor-pointer">
+                      <Heart className="mr-2 h-4 w-4" />
+                      My Wishlist
+                    </DropdownMenuItem>
+                  </Link>
+                  <Link to={createPageUrl("AdminDashboard")}>
+                    <DropdownMenuItem className="cursor-pointer">
+                      <Building className="mr-2 h-4 w-4" />
+                      My Properties
+                    </DropdownMenuItem>
+                  </Link>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={handleLogout} className="cursor-pointer text-red-600">
+                    <LogOut className="mr-2 h-4 w-4" />
+                    Sign Out
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            ) : (
+              <Button
+                onClick={handleLogin}
+                className="bg-sky-600 hover:bg-sky-700 text-white font-medium"
+              >
+                <LogIn className="w-4 h-4 mr-2" />
+                Sign In
+              </Button>
+            )}
+          </div>
+        </div>
+      </div>
+    </nav>
+  );
+}

@@ -1,0 +1,159 @@
+import { useState } from "react";
+import { Card } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { ChevronLeft, ChevronRight, Camera, X } from "lucide-react";
+import {
+  Dialog,
+  DialogContent,
+} from "@/components/ui/dialog";
+
+export default function PhotoGallery({ photos, title }) {
+  const [selectedImage, setSelectedImage] = useState(0);
+  const [showLightbox, setShowLightbox] = useState(false);
+
+  if (!photos || photos.length === 0) {
+    return (
+      <Card className="h-96 flex items-center justify-center bg-gray-100">
+        <div className="text-center text-gray-500">
+          <Camera className="w-16 h-16 mx-auto mb-4" />
+          <p>No photos available</p>
+        </div>
+      </Card>
+    );
+  }
+
+  const nextImage = () => {
+    setSelectedImage((prev) => (prev + 1) % photos.length);
+  };
+
+  const prevImage = () => {
+    setSelectedImage((prev) => (prev - 1 + photos.length) % photos.length);
+  };
+
+  return (
+    <>
+      <Card className="overflow-hidden">
+        <div className="relative">
+          {/* Main Image */}
+          <div className="h-96 relative overflow-hidden">
+            <img
+              src={photos[selectedImage]}
+              alt={`${title} - Photo ${selectedImage + 1}`}
+              className="w-full h-full object-cover cursor-pointer hover:scale-105 transition-transform duration-300"
+              onClick={() => setShowLightbox(true)}
+            />
+            
+            {photos.length > 1 && (
+              <>
+                <Button
+                  variant="secondary"
+                  size="icon"
+                  className="absolute left-4 top-1/2 transform -translate-y-1/2 bg-white/80 hover:bg-white"
+                  onClick={prevImage}
+                >
+                  <ChevronLeft className="w-4 h-4" />
+                </Button>
+                <Button
+                  variant="secondary"
+                  size="icon"
+                  className="absolute right-4 top-1/2 transform -translate-y-1/2 bg-white/80 hover:bg-white"
+                  onClick={nextImage}
+                >
+                  <ChevronRight className="w-4 h-4" />
+                </Button>
+              </>
+            )}
+
+            {/* Image Counter */}
+            <div className="absolute bottom-4 right-4 bg-black/70 text-white px-3 py-1 rounded-full text-sm">
+              {selectedImage + 1} / {photos.length}
+            </div>
+          </div>
+
+          {/* Thumbnail Strip */}
+          {photos.length > 1 && (
+            <div className="p-4 bg-white">
+              <div className="flex gap-2 overflow-x-auto">
+                {photos.map((photo, index) => (
+                  <div
+                    key={index}
+                    className={`relative shrink-0 w-20 h-20 rounded-lg overflow-hidden cursor-pointer border-2 transition-all ${
+                      index === selectedImage 
+                        ? 'border-blue-500 shadow-lg' 
+                        : 'border-gray-200 hover:border-gray-300'
+                    }`}
+                    onClick={() => setSelectedImage(index)}
+                  >
+                    <img
+                      src={photo}
+                      alt={`Thumbnail ${index + 1}`}
+                      className="w-full h-full object-cover"
+                    />
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      </Card>
+
+      {/* Lightbox */}
+      <Dialog open={showLightbox} onOpenChange={setShowLightbox}>
+        <DialogContent className="max-w-4xl w-full h-full max-h-[90vh] p-0">
+          <div className="relative h-full bg-black">
+            <Button
+              variant="ghost"
+              size="icon"
+              className="absolute top-4 right-4 z-10 text-white hover:bg-white/20"
+              onClick={() => setShowLightbox(false)}
+            >
+              <X className="w-6 h-6" />
+            </Button>
+            
+            <div className="h-full flex items-center justify-center">
+              <img
+                src={photos[selectedImage]}
+                alt={`${title} - Photo ${selectedImage + 1}`}
+                className="max-w-full max-h-full object-contain"
+              />
+            </div>
+
+            {photos.length > 1 && (
+              <>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="absolute left-4 top-1/2 transform -translate-y-1/2 text-white hover:bg-white/20"
+                  onClick={prevImage}
+                >
+                  <ChevronLeft className="w-8 h-8" />
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="absolute right-4 top-1/2 transform -translate-y-1/2 text-white hover:bg-white/20"
+                  onClick={nextImage}
+                >
+                  <ChevronRight className="w-8 h-8" />
+                </Button>
+              </>
+            )}
+
+            {/* Bottom navigation */}
+            <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 flex gap-2">
+              {photos.map((_, index) => (
+                <button
+                  key={index}
+                  className={`w-2 h-2 rounded-full transition-colors ${
+                    index === selectedImage ? 'bg-white' : 'bg-white/50'
+                  }`}
+                  onClick={() => setSelectedImage(index)}
+                />
+              ))}
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+    </>
+  );
+}

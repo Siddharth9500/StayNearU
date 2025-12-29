@@ -1,0 +1,57 @@
+{
+  "name": "Review",
+  "type": "object",
+  "properties": {
+    "property_id": {
+      "type": "string",
+      "description": "ID of the property being reviewed"
+    },
+    "user_email": {
+      "type": "string",
+      "description": "Email of the user writing the review"
+    },
+    "user_name": {
+      "type": "string",
+      "description": "Name of the user writing the review"
+    },
+    "rating": {
+      "type": "number",
+      "minimum": 1,
+      "maximum": 5,
+      "description": "Rating from 1 to 5 stars"
+    },
+    "review_text": {
+      "type": "string",
+      "description": "Review content"
+    },
+    "stay_duration": {
+      "type": "string",
+      "enum": [
+        "less_than_1_month",
+        "1_3_months",
+        "3_6_months",
+        "6_12_months",
+        "more_than_1_year"
+      ],
+      "description": "How long the user stayed"
+    },
+    "verified": {
+      "type": "boolean",
+      "default": false,
+      "description": "Whether the review is verified"
+    }
+  },
+  "required": [
+    "property_id",
+    "user_email",
+    "user_name",
+    "rating",
+    "review_text"
+  ],
+  "rls": {
+    "read": {},
+    "write": {
+      "created_by": "{{user.email}}"
+    }
+  }
+}

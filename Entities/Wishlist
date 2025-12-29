@@ -1,0 +1,26 @@
+{
+  "name": "Wishlist",
+  "type": "object",
+  "properties": {
+    "property_id": {
+      "type": "string",
+      "description": "ID of the property added to wishlist"
+    },
+    "user_email": {
+      "type": "string",
+      "description": "Email of the user who added to wishlist"
+    }
+  },
+  "required": [
+    "property_id",
+    "user_email"
+  ],
+  "rls": {
+    "read": {
+      "created_by": "{{user.email}}"
+    },
+    "write": {
+      "created_by": "{{user.email}}"
+    }
+  }
+}

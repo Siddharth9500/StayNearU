@@ -1,0 +1,189 @@
+{
+  "name": "Property",
+  "type": "object",
+  "properties": {
+    "title": {
+      "type": "string",
+      "description": "Property title/name"
+    },
+    "description": {
+      "type": "string",
+      "description": "Detailed description of the property"
+    },
+    "property_type": {
+      "type": "string",
+      "enum": [
+        "pg",
+        "hostel",
+        "room",
+        "flat",
+        "apartment"
+      ],
+      "description": "Type of accommodation"
+    },
+    "rent_amount": {
+      "type": "number",
+      "description": "Monthly rent amount"
+    },
+    "rent_type": {
+      "type": "string",
+      "enum": [
+        "monthly",
+        "per_bed",
+        "entire_property"
+      ],
+      "default": "monthly",
+      "description": "Rent calculation type"
+    },
+    "security_deposit": {
+      "type": "number",
+      "description": "Security deposit amount"
+    },
+    "address": {
+      "type": "string",
+      "description": "Full address of the property"
+    },
+    "city": {
+      "type": "string",
+      "description": "City where property is located"
+    },
+    "state": {
+      "type": "string",
+      "description": "State where property is located"
+    },
+    "pincode": {
+      "type": "string",
+      "description": "Postal/ZIP code"
+    },
+    "latitude": {
+      "type": "number",
+      "description": "Latitude coordinate"
+    },
+    "longitude": {
+      "type": "number",
+      "description": "Longitude coordinate"
+    },
+    "nearby_colleges": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "List of nearby colleges/universities"
+    },
+    "distance_to_college": {
+      "type": "string",
+      "description": "Distance to nearest college (e.g., '2 km', '500 m')"
+    },
+    "facilities": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "Available facilities and amenities"
+    },
+    "photos": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "Array of photo URLs"
+    },
+    "videos": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "Array of video URLs"
+    },
+    "owner_name": {
+      "type": "string",
+      "description": "Property owner's name"
+    },
+    "owner_phone": {
+      "type": "string",
+      "description": "Owner's contact phone number"
+    },
+    "owner_email": {
+      "type": "string",
+      "description": "Owner's email address"
+    },
+    "owner_whatsapp": {
+      "type": "string",
+      "description": "Owner's WhatsApp number"
+    },
+    "availability_status": {
+      "type": "string",
+      "enum": [
+        "available",
+        "partially_available",
+        "not_available"
+      ],
+      "default": "available",
+      "description": "Current availability status"
+    },
+    "total_rooms": {
+      "type": "number",
+      "description": "Total number of rooms"
+    },
+    "available_rooms": {
+      "type": "number",
+      "description": "Currently available rooms"
+    },
+    "gender_preference": {
+      "type": "string",
+      "enum": [
+        "male",
+        "female",
+        "coed",
+        "any"
+      ],
+      "description": "Gender preference for tenants"
+    },
+    "sharing_options": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "enum": [
+          "single",
+          "double",
+          "triple"
+        ]
+      },
+      "description": "Available sharing options"
+    },
+    "is_verified": {
+      "type": "boolean",
+      "default": false,
+      "description": "Whether the property is verified"
+    },
+    "featured": {
+      "type": "boolean",
+      "default": false,
+      "description": "Whether to feature this property"
+    }
+  },
+  "required": [
+    "title",
+    "property_type",
+    "rent_amount",
+    "address",
+    "city",
+    "owner_name",
+    "owner_phone"
+  ],
+  "rls": {
+    "read": {},
+    "write": {
+      "$or": [
+        {
+          "created_by": "{{user.email}}"
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
+    }
+  }
+}

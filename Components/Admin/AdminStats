@@ -1,0 +1,56 @@
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Building, CheckCircle, DollarSign, TrendingUp } from "lucide-react";
+
+export default function AdminStats({ stats }) {
+  const statCards = [
+    {
+      title: "Total Properties",
+      value: stats.totalProperties,
+      icon: Building,
+      color: "bg-blue-500",
+      bgColor: "bg-blue-50"
+    },
+    {
+      title: "Available",
+      value: stats.availableProperties,
+      icon: CheckCircle,
+      color: "bg-green-500",
+      bgColor: "bg-green-50"
+    },
+    {
+      title: "Total Revenue Potential",
+      value: `₹${stats.totalRevenue.toLocaleString()}`,
+      icon: DollarSign,
+      color: "bg-purple-500",
+      bgColor: "bg-purple-50"
+    },
+    {
+      title: "Average Rent",
+      value: `₹${Math.round(stats.averageRent).toLocaleString()}`,
+      icon: TrendingUp,
+      color: "bg-orange-500",
+      bgColor: "bg-orange-50"
+    }
+  ];
+
+  return (
+    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+      {statCards.map((stat, index) => (
+        <Card key={index} className={`relative overflow-hidden ${stat.bgColor} border-0`}>
+          <div className={`absolute top-0 right-0 w-24 h-24 ${stat.color} opacity-10 rounded-full transform translate-x-6 -translate-y-6`}></div>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium text-gray-600">
+              {stat.title}
+            </CardTitle>
+            <div className={`p-2 ${stat.color} rounded-lg`}>
+              <stat.icon className="w-4 h-4 text-white" />
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-gray-900">{stat.value}</div>
+          </CardContent>
+        </Card>
+      ))}
+    </div>
+  );
+}

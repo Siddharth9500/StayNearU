@@ -1,0 +1,227 @@
+import React, { useState } from "react";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { Search, MapPin, Users, Building, Navigation } from "lucide-react";
+
+const GOOGLE_MAPS_API_KEY = "AIzaSyD5ypvab8XXpDlkI3BZJScaJGGYZ5u_cr8";
+
+const getAccurateUserLocation = () => {
+  return new Promise((resolve, reject) => {
+    if (!navigator.geolocation) {
+      return reject("Geolocation not supported");
+    }
+
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        resolve({
+          latitude: position.coords.latitude,
+          longitude: position.coords.longitude
+        });
+      },
+      (error) => {
+        reject(error);
+      },
+      {
+        enableHighAccuracy: true,
+        timeout: 10000,
+        maximumAge: 0
+      }
+    );
+  });
+};
+
+const getUserLocationForSearch = async () => {
+  try {
+    return await getAccurateUserLocation();
+  } catch (error) {
+    console.log("Browser geolocation failed, trying Google API...", error);
+    
+    try {
+      const response = await fetch(
+        `https://www.googleapis.com/geolocation/v1/geolocate?key=${GOOGLE_MAPS_API_KEY}`,
+        {
+          method: "POST"
+        }
+      );
+
+      const data = await response.json();
+
+      if (data.location) {
+        return {
+          latitude: data.location.lat,
+          longitude: data.location.lng
+        };
+      } else {
+        throw new Error("Unable to fetch location");
+      }
+    } catch (googleError) {
+      console.error("Google geolocation error:", googleError);
+      throw new Error("Unable to detect your location");
+    }
+  }
+};
+
+const getLocationForSearch = async () => {
+  const location = await getUserLocationForSearch();
+  
+  const response = await fetch(
+    `https://maps.googleapis.com/maps/api/geocode/json?latlng=${location.latitude},${location.longitude}&key=${GOOGLE_MAPS_API_KEY}`
+  );
+  
+  if (!response.ok) {
+    return `${location.latitude.toFixed(4)}, ${location.longitude.toFixed(4)}`;
+  }
+  
+  const data = await response.json();
+  
+  if (data.status === 'OK' && data.results && data.results.length > 0) {
+    const addressComponents = data.results[0].address_components;
+    let locality = '';
+    let city = '';
+    
+    addressComponents.forEach(component => {
+      if (component.types.includes('locality')) city = component.long_name;
+      if (component.types.includes('sublocality_level_1') || component.types.includes('sublocality')) {
+        locality = component.long_name;
+      }
+    });
+    
+    return locality && city ? `${locality}, ${city}` : city || `${location.latitude.toFixed(4)}, ${location.longitude.toFixed(4)}`;
+  }
+  
+  return `${location.latitude.toFixed(4)}, ${location.longitude.toFixed(4)}`;
+};
+
+export default function Hero({ onSearch, onUseLocation, isLocating }) {
+  const [searchValue, setSearchValue] = useState("");
+
+  const handleSearch = () => {
+    onSearch(searchValue);
+  };
+
+  const handleKeyPress = (e) => {
+    if (e.key === 'Enter') {
+      handleSearch();
+    }
+  };
+
+  const handleUseLocationWithAddress = async () => {
+    onUseLocation();
+
+    try {
+      const locationText = await getLocationForSearch();
+      setSearchValue(locationText);
+      console.log('Location detected for search:', locationText);
+    } catch (error) {
+      console.error("Location error:", error);
+      alert(error.message);
+    }
+  };
+
+  return (
+    <div className="relative bg-white overflow-hidden">
+      <div className="absolute inset-0">
+        <img 
+          src="https://images.unsplash.com/photo-1554995207-c18c203602cb?q=80&w=2940" 
+          alt="Modern living room"
+          className="w-full h-full object-cover"
+        />
+        <div className="absolute inset-0 bg-white/70"></div>
+      </div>
+      
+      <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-24 lg:py-32">
+        <div className="text-center">
+          <h1 className="text-4xl md:text-6xl lg:text-7xl font-bold text-gray-900 mb-6 leading-tight">
+            Find Your Perfect
+            <span className="block bg-gradient-to-r from-sky-400 to-sky-600 bg-clip-text text-transparent">
+              Student Stay
+            </span>
+          </h1>
+          <p className="text-xl md:text-2xl text-gray-600 mb-12 max-w-3xl mx-auto">
+            Discover PGs, hostels, and rooms near your college with verified photos, 
+            transparent pricing, and instant contact with property owners.
+          </p>
+
+          <div className="max-w-3xl mx-auto bg-white/80 backdrop-blur-sm rounded-2xl p-2 mb-12 shadow-lg border border-gray-100">
+            <div className="flex flex-col sm:flex-row items-center gap-2">
+              <div className="flex-1 relative w-full">
+                <MapPin className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+                <Input
+                  placeholder="Enter college name, area, or city..."
+                  value={searchValue}
+                  onChange={(e) => setSearchValue(e.target.value)}
+                  onKeyPress={handleKeyPress}
+                  className="pl-12 h-14 bg-transparent border-0 text-gray-800 placeholder:text-gray-500 focus-visible:ring-0 focus-visible:ring-offset-0"
+                />
+              </div>
+              <div className="flex items-center gap-2 w-full sm:w-auto">
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  className="h-14 w-14 text-sky-600 hover:bg-sky-100 shrink-0"
+                  onClick={handleUseLocationWithAddress}
+                  disabled={isLocating}
+                  title="Detect my location"
+                >
+                  {isLocating ? (
+                    <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-sky-600"></div>
+                  ) : (
+                    <Navigation className="w-5 h-5" />
+                  )}
+                </Button>
+                <Button 
+                  onClick={handleSearch}
+                  size="lg"
+                  className="h-14 flex-1 sm:flex-none px-8 bg-sky-600 hover:bg-sky-700 text-white font-semibold"
+                >
+                  <Search className="w-5 h-5 mr-2" />
+                  Search Properties
+                </Button>
+              </div>
+            </div>
+            
+            {isLocating && (
+              <div className="mt-3 bg-sky-100 border border-sky-200 rounded-lg p-3 text-sky-800 text-sm flex items-center gap-2">
+                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-sky-600"></div>
+                <span>🌍 Detecting your location with high accuracy GPS...</span>
+              </div>
+            )}
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-4xl mx-auto text-left">
+            <div className="bg-white/60 backdrop-blur-sm rounded-xl p-6 border border-gray-200">
+              <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center mb-4">
+                <Navigation className="w-6 h-6 text-blue-600" />
+              </div>
+              <h3 className="text-lg font-semibold text-gray-900 mb-2">Auto-Location</h3>
+              <p className="text-gray-600 text-sm">
+                One-click location detection using GPS and Google Maps
+              </p>
+            </div>
+            
+            <div className="bg-white/60 backdrop-blur-sm rounded-xl p-6 border border-gray-200">
+              <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center mb-4">
+                <MapPin className="w-6 h-6 text-green-600" />
+              </div>
+              <h3 className="text-lg font-semibold text-gray-900 mb-2">Near Colleges</h3>
+              <p className="text-gray-600 text-sm">
+                Find properties within walking distance of your college campus
+              </p>
+            </div>
+            
+            <div className="bg-white/60 backdrop-blur-sm rounded-xl p-6 border border-gray-200">
+              <div className="w-12 h-12 bg-purple-100 rounded-full flex items-center justify-center mb-4">
+                <Building className="w-6 h-6 text-purple-600" />
+              </div>
+              <h3 className="text-lg font-semibold text-gray-900 mb-2">Verified Properties</h3>
+              <p className="text-gray-600 text-sm">
+                All properties verified with real photos and transparent pricing
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}

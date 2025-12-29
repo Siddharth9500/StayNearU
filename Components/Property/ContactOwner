@@ -1,0 +1,338 @@
+import { useState, useEffect } from "react";
+import { User } from "@/entities/User";
+import { SendEmail } from "@/integrations/Core";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { 
+  Phone, 
+  Mail, 
+  MessageCircle, 
+  Send, 
+  Shield, 
+  LogIn,
+  CheckCircle
+} from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
+
+export default function ContactOwner({ property }) {
+  const [user, setUser] = useState(null);
+  const [showContactForm, setShowContactForm] = useState(false);
+  const [sending, setSending] = useState(false);
+  const [messageSent, setMessageSent] = useState(false);
+  const [contactForm, setContactForm] = useState({
+    message: "",
+    inquiryType: "general",
+    phone: "",
+    preferredContactTime: "anytime"
+  });
+
+  useEffect(() => {
+    checkAuth();
+  }, []);
+
+  const checkAuth = async () => {
+    try {
+      const userData = await User.me();
+      setUser(userData);
+      setContactForm(prev => ({
+        ...prev,
+        phone: userData.phone || ""
+      }));
+    } catch (error) {
+      setUser(null);
+    }
+  };
+
+  const handleLogin = async () => {
+    try {
+      await User.loginWithRedirect(window.location.href);
+    } catch (error) {
+      console.error("Login error:", error);
+    }
+  };
+
+  const handleSendMessage = async () => {
+    if (!user) {
+      const shouldLogin = confirm("You need to sign in to contact property owners. Would you like to sign in now?");
+      if (shouldLogin) {
+        handleLogin();
+      }
+      return;
+    }
+
+    if (!contactForm.message.trim()) {
+      alert("Please enter your message.");
+      return;
+    }
+
+    setSending(true);
+    
+    try {
+      const inquiryTypes = {
+        general: "General Inquiry",
+        visit: "Property Visit Request", 
+        booking: "Booking Inquiry",
+        pricing: "Pricing Details",
+        facilities: "Facilities Information"
+      };
+
+      const emailBody = `
+Dear ${property.owner_name},
+
+You have received a new inquiry for your property: ${property.title}
+
+Student Details:
+- Name: ${user.full_name}
+- Email: ${user.email}
+- Phone: ${contactForm.phone || "Not provided"}
+- Inquiry Type: ${inquiryTypes[contactForm.inquiryType]}
+- Preferred Contact Time: ${contactForm.preferredContactTime}
+
+Message:
+${contactForm.message}
+
+Property Details:
+- Title: ${property.title}
+- Location: ${property.address}, ${property.city}
+- Rent: ₹${property.rent_amount?.toLocaleString()}/${property.rent_type}
+
+Please respond to the student directly at ${user.email} or ${contactForm.phone}.
+
+Best regards,
+StayNearU Team
+      `;
+
+      await SendEmail({
+        to: property.owner_email,
+        subject: `New Inquiry for ${property.title} - StayNearU`,
+        body: emailBody,
+        from_name: "StayNearU Platform"
+      });
+
+      setMessageSent(true);
+      setContactForm({
+        message: "",
+        inquiryType: "general", 
+        phone: contactForm.phone,
+        preferredContactTime: "anytime"
+      });
+      
+      setTimeout(() => {
+        setMessageSent(false);
+        setShowContactForm(false);
+      }, 3000);
+
+    } catch (error) {
+      console.error("Error sending message:", error);
+      alert("Error sending message. Please try again or contact the owner directly.");
+    }
+    
+    setSending(false);
+  };
+
+  return (
+    <div className="space-y-6">
+      {/* Owner Contact Card */}
+      <Card className="bg-gradient-to-br from-blue-50 to-indigo-50 border-blue-200">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Shield className="w-5 h-5 text-blue-600" />
+            Contact Property Owner
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="space-y-3">
+            <div className="flex items-center justify-between p-3 bg-white rounded-lg border">
+              <div>
+                <p className="font-semibold text-gray-900">{property.owner_name}</p>
+                <p className="text-sm text-gray-600">Property Owner</p>
+              </div>
+              <div className="text-right">
+                <p className="text-xs text-gray-500">Verified Owner</p>
+                <CheckCircle className="w-4 h-4 text-green-500 ml-auto" />
+              </div>
+            </div>
+
+            {/* Contact Actions */}
+            <div className="grid grid-cols-2 gap-2">
+              <a
+                href={`tel:${property.owner_phone}`}
+                className="flex items-center justify-center gap-2 p-3 bg-green-100 hover:bg-green-200 text-green-800 rounded-lg transition-colors font-medium"
+              >
+                <Phone className="w-4 h-4" />
+                Call Now
+              </a>
+              
+              {!user ? (
+                <Button
+                  onClick={handleLogin}
+                  className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700"
+                >
+                  <LogIn className="w-4 h-4" />
+                  Sign In to Message
+                </Button>
+              ) : (
+                <Button
+                  onClick={() => setShowContactForm(!showContactForm)}
+                  variant={showContactForm ? "secondary" : "default"}
+                  className="flex items-center gap-2"
+                >
+                  <MessageCircle className="w-4 h-4" />
+                  {showContactForm ? "Cancel" : "Send Message"}
+                </Button>
+              )}
+            </div>
+
+            {/* WhatsApp Contact */}
+            {property.owner_whatsapp && (
+              <a
+                href={`https://wa.me/${property.owner_whatsapp.replace(/[^\d]/g, '')}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center justify-center gap-2 w-full p-3 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors font-medium"
+              >
+                <MessageCircle className="w-4 h-4" />
+                WhatsApp Owner
+              </a>
+            )}
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Secure Contact Form */}
+      <AnimatePresence>
+        {showContactForm && user && (
+          <motion.div
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -20 }}
+          >
+            <Card className="border-blue-200">
+              <CardHeader>
+                <CardTitle className="text-lg flex items-center gap-2">
+                  <Mail className="w-5 h-5 text-blue-600" />
+                  Send Secure Message
+                </CardTitle>
+                <p className="text-sm text-gray-600">
+                  Your message will be sent securely to the property owner
+                </p>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {messageSent ? (
+                  <motion.div 
+                    initial={{ scale: 0.8, opacity: 0 }}
+                    animate={{ scale: 1, opacity: 1 }}
+                    className="text-center py-8"
+                  >
+                    <CheckCircle className="w-12 h-12 text-green-500 mx-auto mb-4" />
+                    <h3 className="text-lg font-semibold text-green-800 mb-2">Message Sent!</h3>
+                    <p className="text-gray-600">The property owner will contact you soon.</p>
+                  </motion.div>
+                ) : (
+                  <>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="inquiryType">Inquiry Type</Label>
+                        <Select
+                          value={contactForm.inquiryType}
+                          onValueChange={(value) => setContactForm(prev => ({...prev, inquiryType: value}))}
+                        >
+                          <SelectTrigger>
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="general">General Inquiry</SelectItem>
+                            <SelectItem value="visit">Schedule Visit</SelectItem>
+                            <SelectItem value="booking">Booking Details</SelectItem>
+                            <SelectItem value="pricing">Pricing Information</SelectItem>
+                            <SelectItem value="facilities">Facilities & Amenities</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label htmlFor="preferredTime">Best Time to Contact</Label>
+                        <Select
+                          value={contactForm.preferredContactTime}
+                          onValueChange={(value) => setContactForm(prev => ({...prev, preferredContactTime: value}))}
+                        >
+                          <SelectTrigger>
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="anytime">Anytime</SelectItem>
+                            <SelectItem value="morning">Morning (9AM - 12PM)</SelectItem>
+                            <SelectItem value="afternoon">Afternoon (12PM - 6PM)</SelectItem>
+                            <SelectItem value="evening">Evening (6PM - 9PM)</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="phone">Your Phone Number (Optional)</Label>
+                      <Input
+                        id="phone"
+                        value={contactForm.phone}
+                        onChange={(e) => setContactForm(prev => ({...prev, phone: e.target.value}))}
+                        placeholder="+91 9876543210"
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="message">Your Message</Label>
+                      <Textarea
+                        id="message"
+                        value={contactForm.message}
+                        onChange={(e) => setContactForm(prev => ({...prev, message: e.target.value}))}
+                        placeholder="Hi, I'm interested in your property. Could you please provide more details about..."
+                        rows={4}
+                      />
+                    </div>
+
+                    <Button
+                      onClick={handleSendMessage}
+                      disabled={sending || !contactForm.message.trim()}
+                      className="w-full bg-blue-600 hover:bg-blue-700"
+                    >
+                      {sending ? (
+                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                      ) : (
+                        <Send className="w-4 h-4 mr-2" />
+                      )}
+                      {sending ? "Sending..." : "Send Secure Message"}
+                    </Button>
+
+                    <div className="bg-blue-50 p-3 rounded-lg">
+                      <p className="text-xs text-blue-800 flex items-center gap-1">
+                        <Shield className="w-3 h-3" />
+                        Your personal information is protected and only shared with the property owner upon your consent.
+                      </p>
+                    </div>
+                  </>
+                )}
+              </CardContent>
+            </Card>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Privacy Notice */}
+      <Card className="bg-gray-50 border-gray-200">
+        <CardContent className="p-4">
+          <div className="flex items-center gap-2 mb-2">
+            <Shield className="w-4 h-4 text-gray-600" />
+            <p className="text-sm font-medium text-gray-800">Privacy Protected</p>
+          </div>
+          <p className="text-xs text-gray-600">
+            All communications are secure and monitored for safety. Report any inappropriate behavior to our support team.
+          </p>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}

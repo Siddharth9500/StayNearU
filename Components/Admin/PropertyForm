@@ -1,0 +1,603 @@
+import React from "react";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { X, Plus, Navigation } from "lucide-react";
+
+const facilityOptions = [
+  "WiFi", "AC", "Parking", "Laundry", "Kitchen", "Security",
+  "Housekeeping", "Gym", "Common Area", "Study Room", "CCTV",
+  "Generator", "Water Supply", "Mess", "Refrigerator"
+];
+
+const sharingTypeOptions = ["single", "double", "triple"];
+
+const GOOGLE_MAPS_API_KEY = "AIzaSyD5ypvab8XXpDlkI3BZJScaJGGYZ5u_cr8";
+
+const googleGeolocationFallback = () => {
+  return new Promise((resolve, reject) => {
+    fetch(
+      `https://www.googleapis.com/geolocation/v1/geolocate?key=${GOOGLE_MAPS_API_KEY}`,
+      { method: 'POST' }
+    )
+      .then(response => response.json())
+      .then(data => {
+        if (data.location) {
+          resolve({
+            latitude: data.location.lat,
+            longitude: data.location.lng,
+            accuracy: data.accuracy || null
+          });
+        } else {
+          reject(new Error('Google Geolocation failed'));
+        }
+      })
+      .catch(error => reject(error));
+  });
+};
+
+const getUserLocation = () => {
+  return new Promise((resolve, reject) => {
+    if (!navigator.geolocation) {
+      googleGeolocationFallback().then(resolve).catch(reject);
+      return;
+    }
+
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        resolve({
+          latitude: position.coords.latitude,
+          longitude: position.coords.longitude,
+          accuracy: position.coords.accuracy
+        });
+      },
+      (error) => {
+        console.warn('Browser geolocation failed, trying Google API...', error);
+        googleGeolocationFallback()
+          .then(resolve)
+          .catch(() => {
+            let errorMessage = "Unable to retrieve your location. ";
+            switch(error.code) {
+              case error.PERMISSION_DENIED:
+                errorMessage += "Please allow location access in your browser settings.";
+                break;
+              case error.POSITION_UNAVAILABLE:
+                errorMessage += "Location information is unavailable.";
+                break;
+              case error.TIMEOUT:
+                errorMessage += "Location request timed out.";
+                break;
+              default:
+                errorMessage += "An unknown error occurred.";
+                break;
+            }
+            reject(new Error(errorMessage));
+          });
+      },
+      {
+        enableHighAccuracy: true,
+        timeout: 10000,
+        maximumAge: 0
+      }
+    );
+  });
+};
+
+const geocodeLocation = async (latitude, longitude) => {
+  try {
+    const response = await fetch(
+      `https://maps.googleapis.com/maps/api/geocode/json?latlng=${latitude},${longitude}&key=${GOOGLE_MAPS_API_KEY}`
+    );
+    
+    if (!response.ok) {
+      throw new Error(`Geocoding failed: ${response.status}`);
+    }
+    
+    const data = await response.json();
+    
+    if (data.status !== 'OK' || !data.results || data.results.length === 0) {
+      console.warn('Geocoding returned no results');
+      return {
+        address: `${latitude.toFixed(4)}, ${longitude.toFixed(4)}`,
+        city: '',
+        state: '',
+        pincode: ''
+      };
+    }
+
+    const result = data.results[0];
+    const addressComponents = result.address_components;
+    
+    let streetNumber = '';
+    let route = '';
+    let sublocality = '';
+    let locality = '';
+    let administrativeAreaLevel1 = '';
+    let postalCode = '';
+    
+    addressComponents.forEach(component => {
+      const types = component.types;
+      if (types.includes('street_number')) streetNumber = component.long_name;
+      if (types.includes('route')) route = component.long_name;
+      if (types.includes('sublocality_level_1') || types.includes('sublocality')) sublocality = component.long_name;
+      if (types.includes('locality')) locality = component.long_name;
+      if (types.includes('administrative_area_level_1')) administrativeAreaLevel1 = component.long_name;
+      if (types.includes('postal_code')) postalCode = component.short_name;
+    });
+    
+    const addressParts = [streetNumber, route, sublocality].filter(Boolean);
+    const fullAddress = addressParts.length > 0 
+      ? addressParts.join(', ')
+      : (sublocality || locality || result.formatted_address);
+    
+    return {
+      address: fullAddress || result.formatted_address,
+      city: locality || sublocality || '',
+      state: administrativeAreaLevel1 || '',
+      pincode: postalCode || ''
+    };
+  } catch (error) {
+    console.error('Geocoding error:', error);
+    return {
+      address: `${latitude.toFixed(4)}, ${longitude.toFixed(4)}`,
+      city: '',
+      state: '',
+      pincode: ''
+    };
+  }
+};
+
+export default function PropertyForm({ formData, onChange }) {
+  const [newCollege, setNewCollege] = React.useState("");
+  const [isLocating, setIsLocating] = React.useState(false);
+
+  const addCollege = () => {
+    if (newCollege.trim()) {
+      onChange("nearby_colleges", [...formData.nearby_colleges, newCollege.trim()]);
+      setNewCollege("");
+    }
+  };
+
+  const removeCollege = (index) => {
+    onChange("nearby_colleges", formData.nearby_colleges.filter((_, i) => i !== index));
+  };
+
+  const toggleFacility = (facility) => {
+    const facilities = formData.facilities.includes(facility)
+      ? formData.facilities.filter(f => f !== facility)
+      : [...formData.facilities, facility];
+    onChange("facilities", facilities);
+  };
+
+  const toggleSharingOption = (option) => {
+    const currentOptions = formData.sharing_options || [];
+    const newOptions = currentOptions.includes(option)
+      ? currentOptions.filter(o => o !== option)
+      : [...currentOptions, option];
+    onChange("sharing_options", newOptions);
+  };
+
+  const handleUseLocation = async () => {
+    setIsLocating(true);
+
+    try {
+      const location = await getUserLocation();
+      console.log('Location detected:', location);
+      
+      const address = await geocodeLocation(location.latitude, location.longitude);
+      console.log('Address geocoded:', address);
+      
+      // Update form fields
+      onChange("latitude", location.latitude.toFixed(6));
+      onChange("longitude", location.longitude.toFixed(6));
+      onChange("address", address.address);
+      if (address.city) onChange("city", address.city);
+      if (address.state) onChange("state", address.state);
+      if (address.pincode) onChange("pincode", address.pincode);
+      
+      console.log('✓ Location and address updated successfully');
+      alert('✓ Location detected! Address fields have been auto-filled.');
+    } catch (error) {
+      console.error("Location error:", error);
+      alert(`Unable to detect location: ${error.message}\n\nTips:\n1. Allow location access when your browser asks\n2. Check your internet connection\n3. Try again or enter address manually`);
+    } finally {
+      setIsLocating(false);
+    }
+  };
+
+  return (
+    <div className="space-y-6">
+      {/* Basic Information */}
+      <div className="grid md:grid-cols-2 gap-6">
+        <div className="space-y-2">
+          <Label htmlFor="title">Property Title *</Label>
+          <Input
+            id="title"
+            value={formData.title}
+            onChange={(e) => onChange("title", e.target.value)}
+            placeholder="e.g., Comfortable PG near ABC College"
+            required
+          />
+        </div>
+
+        <div className="space-y-2">
+          <Label htmlFor="property_type">Property Type *</Label>
+          <Select value={formData.property_type} onValueChange={(value) => onChange("property_type", value)}>
+            <SelectTrigger>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="pg">PG (Paying Guest)</SelectItem>
+              <SelectItem value="hostel">Hostel</SelectItem>
+              <SelectItem value="room">Room</SelectItem>
+              <SelectItem value="flat">Flat</SelectItem>
+              <SelectItem value="apartment">Apartment</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+      </div>
+
+      {/* Description */}
+      <div className="space-y-2">
+        <Label htmlFor="description">Description</Label>
+        <Textarea
+          id="description"
+          value={formData.description}
+          onChange={(e) => onChange("description", e.target.value)}
+          placeholder="Describe your property, its features, and what makes it special..."
+          rows={4}
+        />
+      </div>
+
+      {/* Rent Details */}
+      <div className="grid md:grid-cols-3 gap-6">
+        <div className="space-y-2">
+          <Label htmlFor="rent_amount">Rent Amount *</Label>
+          <Input
+            id="rent_amount"
+            type="number"
+            value={formData.rent_amount}
+            onChange={(e) => onChange("rent_amount", e.target.value)}
+            placeholder="15000"
+            required
+          />
+        </div>
+
+        <div className="space-y-2">
+          <Label htmlFor="rent_type">Rent Type</Label>
+          <Select value={formData.rent_type} onValueChange={(value) => onChange("rent_type", value)}>
+            <SelectTrigger>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="monthly">Monthly</SelectItem>
+              <SelectItem value="per_bed">Per Bed</SelectItem>
+              <SelectItem value="entire_property">Entire Property</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+
+        <div className="space-y-2">
+          <Label htmlFor="security_deposit">Security Deposit</Label>
+          <Input
+            id="security_deposit"
+            type="number"
+            value={formData.security_deposit}
+            onChange={(e) => onChange("security_deposit", e.target.value)}
+            placeholder="20000"
+          />
+        </div>
+      </div>
+
+      {/* Location Section */}
+      <div className="space-y-6">
+        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+          <div className="flex items-center justify-between mb-3">
+            <div>
+              <h3 className="text-lg font-semibold text-blue-900">📍 Property Location</h3>
+              <p className="text-sm text-blue-700">Click to auto-detect your address using GPS</p>
+            </div>
+            <Button
+              type="button"
+              onClick={handleUseLocation}
+              disabled={isLocating}
+              className="bg-blue-600 hover:bg-blue-700 text-white"
+              size="lg"
+            >
+              {isLocating ? (
+                <>
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                  Detecting...
+                </>
+              ) : (
+                <>
+                  <Navigation className="w-4 h-4 mr-2" />
+                  Use My Location
+                </>
+              )}
+            </Button>
+          </div>
+          
+          {isLocating && (
+            <div className="bg-blue-100 border border-blue-300 rounded-md p-3 text-blue-800 text-sm">
+              🔄 Detecting your location using Google Maps...
+            </div>
+          )}
+        </div>
+
+        <div className="grid md:grid-cols-2 gap-6">
+          <div className="space-y-2">
+            <Label htmlFor="address">Full Address *</Label>
+            <Textarea
+              id="address"
+              value={formData.address}
+              onChange={(e) => onChange("address", e.target.value)}
+              placeholder="House/Flat No., Street, Area..."
+              rows={2}
+              required
+            />
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="city">City *</Label>
+              <Input
+                id="city"
+                value={formData.city}
+                onChange={(e) => onChange("city", e.target.value)}
+                placeholder="Mumbai"
+                required
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="state">State</Label>
+              <Input
+                id="state"
+                value={formData.state}
+                onChange={(e) => onChange("state", e.target.value)}
+                placeholder="Maharashtra"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="pincode">PIN Code</Label>
+              <Input
+                id="pincode"
+                value={formData.pincode}
+                onChange={(e) => onChange("pincode", e.target.value)}
+                placeholder="400001"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="distance_to_college">Distance to College</Label>
+              <Input
+                id="distance_to_college"
+                value={formData.distance_to_college}
+                onChange={(e) => onChange("distance_to_college", e.target.value)}
+                placeholder="2 km"
+              />
+            </div>
+          </div>
+        </div>
+
+        <div className="grid md:grid-cols-2 gap-6">
+          <div className="space-y-2">
+            <Label htmlFor="latitude">Latitude (Auto-detected)</Label>
+            <Input
+              id="latitude"
+              type="number"
+              step="any"
+              value={formData.latitude}
+              onChange={(e) => onChange("latitude", e.target.value)}
+              placeholder="19.0760"
+              className="bg-gray-50"
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="longitude">Longitude (Auto-detected)</Label>
+            <Input
+              id="longitude"
+              type="number"
+              step="any"
+              value={formData.longitude}
+              onChange={(e) => onChange("longitude", e.target.value)}
+              placeholder="72.8777"
+              className="bg-gray-50"
+            />
+          </div>
+        </div>
+      </div>
+
+      {/* Nearby Colleges */}
+      <div className="space-y-4">
+        <Label>Nearby Colleges</Label>
+        <div className="flex gap-2">
+          <Input
+            value={newCollege}
+            onChange={(e) => setNewCollege(e.target.value)}
+            placeholder="Add college name"
+            onKeyPress={(e) => e.key === 'Enter' && (e.preventDefault(), addCollege())}
+          />
+          <Button type="button" onClick={addCollege} variant="outline">
+            <Plus className="w-4 h-4" />
+          </Button>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          {formData.nearby_colleges.map((college, index) => (
+            <Badge key={index} variant="secondary" className="flex items-center gap-1">
+              {college}
+              <X
+                className="w-3 h-3 cursor-pointer"
+                onClick={() => removeCollege(index)}
+              />
+            </Badge>
+          ))}
+        </div>
+      </div>
+
+      {/* Facilities */}
+      <div className="space-y-4">
+        <Label>Facilities & Amenities</Label>
+        <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+          {facilityOptions.map((facility) => (
+            <div key={facility} className="flex items-center space-x-2">
+              <Checkbox
+                id={facility}
+                checked={formData.facilities.includes(facility)}
+                onCheckedChange={() => toggleFacility(facility)}
+              />
+              <Label htmlFor={facility} className="text-sm">{facility}</Label>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Sharing Options */}
+      <div className="space-y-4">
+        <Label>Sharing Options Available</Label>
+        <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+          {sharingTypeOptions.map((option) => (
+            <div key={option} className="flex items-center space-x-2">
+              <Checkbox
+                id={`sharing-${option}`}
+                checked={(formData.sharing_options || []).includes(option)}
+                onCheckedChange={() => toggleSharingOption(option)}
+              />
+              <Label htmlFor={`sharing-${option}`} className="text-sm capitalize">{option} Sharing</Label>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Room Details */}
+      <div className="grid md:grid-cols-3 gap-6">
+        <div className="space-y-2">
+          <Label htmlFor="total_rooms">Total Rooms</Label>
+          <Input
+            id="total_rooms"
+            type="number"
+            value={formData.total_rooms}
+            onChange={(e) => onChange("total_rooms", e.target.value)}
+            placeholder="10"
+          />
+        </div>
+
+        <div className="space-y-2">
+          <Label htmlFor="available_rooms">Available Rooms</Label>
+          <Input
+            id="available_rooms"
+            type="number"
+            value={formData.available_rooms}
+            onChange={(e) => onChange("available_rooms", e.target.value)}
+            placeholder="5"
+          />
+        </div>
+
+        <div className="space-y-2">
+          <Label htmlFor="gender_preference">Gender Preference</Label>
+          <Select value={formData.gender_preference} onValueChange={(value) => onChange("gender_preference", value)}>
+            <SelectTrigger>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="any">Any</SelectItem>
+              <SelectItem value="male">Male Only</SelectItem>
+              <SelectItem value="female">Female Only</SelectItem>
+              <SelectItem value="coed">Co-ed</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+      </div>
+
+      {/* Video URL */}
+      <div className="space-y-2">
+        <Label htmlFor="video_url">Video URL (e.g., YouTube, Vimeo)</Label>
+        <Input
+          id="video_url"
+          value={formData.videos && formData.videos[0] || ''}
+          onChange={(e) => onChange("videos", [e.target.value])}
+          placeholder="https://www.youtube.com/watch?v=..."
+        />
+        <p className="text-sm text-gray-500">Add a link to a video tour of your property.</p>
+      </div>
+
+      {/* Owner Information */}
+      <div className="grid md:grid-cols-2 gap-6">
+        <div className="space-y-2">
+          <Label htmlFor="owner_name">Owner Name *</Label>
+          <Input
+            id="owner_name"
+            value={formData.owner_name}
+            onChange={(e) => onChange("owner_name", e.target.value)}
+            placeholder="Your Name"
+            required
+          />
+        </div>
+
+        <div className="space-y-2">
+          <Label htmlFor="owner_phone">Phone Number *</Label>
+          <Input
+            id="owner_phone"
+            value={formData.owner_phone}
+            onChange={(e) => onChange("owner_phone", e.target.value)}
+            placeholder="+91 9876543210"
+            required
+          />
+        </div>
+
+        <div className="space-y-2">
+          <Label htmlFor="owner_email">Email</Label>
+          <Input
+            id="owner_email"
+            type="email"
+            value={formData.owner_email}
+            onChange={(e) => onChange("owner_email", e.target.value)}
+            placeholder="owner@example.com"
+          />
+        </div>
+
+        <div className="space-y-2">
+          <Label htmlFor="owner_whatsapp">WhatsApp Number</Label>
+          <Input
+            id="owner_whatsapp"
+            value={formData.owner_whatsapp}
+            onChange={(e) => onChange("owner_whatsapp", e.target.value)}
+            placeholder="+91 9876543210"
+          />
+        </div>
+      </div>
+
+      {/* Availability Status */}
+      <div className="space-y-2">
+        <Label htmlFor="availability_status">Availability Status</Label>
+        <Select value={formData.availability_status} onValueChange={(value) => onChange("availability_status", value)}>
+          <SelectTrigger>
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="available">Available</SelectItem>
+            <SelectItem value="partially_available">Partially Available</SelectItem>
+            <SelectItem value="not_available">Not Available</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+
+      {/* Featured Property */}
+      <div className="flex items-center space-x-2">
+        <Checkbox
+          id="featured"
+          checked={formData.featured}
+          onCheckedChange={(checked) => onChange("featured", checked)}
+        />
+        <Label htmlFor="featured">Mark as Featured Property</Label>
+      </div>
+    </div>
+  );
+}

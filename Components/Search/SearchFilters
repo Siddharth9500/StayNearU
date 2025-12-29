@@ -1,0 +1,113 @@
+
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Label } from "@/components/ui/label";
+
+export default function SearchFilters({ filters, onFilterChange, properties }) {
+  const handleFilterChange = (key, value) => {
+    onFilterChange({
+      ...filters,
+      [key]: value
+    });
+  };
+
+  // Get unique cities from properties
+  const uniqueCities = [...new Set(properties.map(p => p.city).filter(Boolean))];
+
+  return (
+    <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4">
+      <div className="space-y-2">
+        <Label htmlFor="propertyType">Property Type</Label>
+        <Select 
+          value={filters.propertyType} 
+          onValueChange={(value) => handleFilterChange('propertyType', value)}
+        >
+          <SelectTrigger>
+            <SelectValue placeholder="All Types" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All Types</SelectItem>
+            <SelectItem value="pg">PG</SelectItem>
+            <SelectItem value="hostel">Hostel</SelectItem>
+            <SelectItem value="room">Room</SelectItem>
+            <SelectItem value="flat">Flat</SelectItem>
+            <SelectItem value="apartment">Apartment</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+
+      <div className="space-y-2">
+        <Label htmlFor="priceRange">Price Range</Label>
+        <Select 
+          value={filters.priceRange} 
+          onValueChange={(value) => handleFilterChange('priceRange', value)}
+        >
+          <SelectTrigger>
+            <SelectValue placeholder="All Prices" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All Prices</SelectItem>
+            <SelectItem value="0-5000">Under ₹5,000</SelectItem>
+            <SelectItem value="5000-10000">₹5,000 - ₹10,000</SelectItem>
+            <SelectItem value="10000-20000">₹10,000 - ₹20,000</SelectItem>
+            <SelectItem value="20000-50000">₹20,000 - ₹50,000</SelectItem>
+            <SelectItem value="50000">Above ₹50,000</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+
+      <div className="space-y-2">
+        <Label htmlFor="genderPreference">Gender</Label>
+        <Select 
+          value={filters.genderPreference} 
+          onValueChange={(value) => handleFilterChange('genderPreference', value)}
+        >
+          <SelectTrigger>
+            <SelectValue placeholder="Any" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Any</SelectItem>
+            <SelectItem value="male">Male Only</SelectItem>
+            <SelectItem value="female">Female Only</SelectItem>
+            <SelectItem value="coed">Co-ed</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+
+      <div className="space-y-2">
+        <Label htmlFor="city">City</Label>
+        <Select 
+          value={filters.city} 
+          onValueChange={(value) => handleFilterChange('city', value)}
+        >
+          <SelectTrigger>
+            <SelectValue placeholder="All Cities" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All Cities</SelectItem>
+            {uniqueCities.map((city) => (
+              <SelectItem key={city} value={city}>{city}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+
+      <div className="space-y-2">
+        <Label htmlFor="sharingOptions">Sharing Type</Label>
+        <Select 
+          value={filters.sharingOptions || "all"} 
+          onValueChange={(value) => handleFilterChange('sharingOptions', value)}
+        >
+          <SelectTrigger>
+            <SelectValue placeholder="Any" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Any Sharing</SelectItem>
+            <SelectItem value="single">Single</SelectItem>
+            <SelectItem value="double">Double</SelectItem>
+            <SelectItem value="triple">Triple</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+    </div>
+  );
+}
