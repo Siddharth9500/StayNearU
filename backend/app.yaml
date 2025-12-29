@@ -1,0 +1,13 @@
+runtime: node18
+
+env: standard
+
+handlers:
+- url: /api/.*
+  script: auto
+
+- url: .*
+  script: auto
+
+env_variables:
+  NODE_ENV: "production"
