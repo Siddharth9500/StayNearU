@@ -6,8 +6,8 @@ import { ArrowLeft, Save } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { createPageUrl } from "@/utils";
 
-import PropertyForm from "../components/admin/PropertyForm";
-import PhotoUpload from "../components/admin/PhotoUpload";
+import PropertyForm from "@/Components/Admin/PropertyForm";
+import PhotoUpload from "@/Components/Admin/PhotoUpload";
 
 export default function EditPropertyPage() {
   const navigate = useNavigate();

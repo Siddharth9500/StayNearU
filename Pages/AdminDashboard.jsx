@@ -15,8 +15,8 @@ import {
 import { Link, useNavigate } from "react-router-dom";
 import { createPageUrl } from "@/utils";
 
-import AdminStats from "../components/admin/AdminStats";
-import PropertyList from "../components/admin/PropertyList";
+import AdminStats from "@/Components/Admin/AdminStats";
+import PropertyList from "@/Components/Admin/PropertyList";
 
 export default function AdminDashboard() {
   const navigate = useNavigate();

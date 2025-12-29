@@ -10,9 +10,9 @@ import {
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
-import PropertyCard from "../components/search/PropertyCard";
-import SearchFilters from "../components/search/SearchFilters";
-import Hero from "../components/search/Hero";
+import PropertyCard from "@/Components/Search/PropertyCard";
+import SearchFilters from "@/Components/Search/SearchFilters";
+import Hero from "@/Components/Search/Hero";
 
 const GOOGLE_MAPS_API_KEY = "AIzaSyD5ypvab8XXpDlkI3BZJScaJGGYZ5u_cr8";
 
