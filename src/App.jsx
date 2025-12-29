@@ -1,5 +1,4 @@
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom'
-import Navbar from '../Components/Navigation/Navbar'
 import Search from '../Pages/Search'
 import PropertyDetails from '../Pages/PropertyDetails'
 import AdminDashboard from '../Pages/AdminDashboard'
@@ -11,7 +10,6 @@ import MapView from '../Pages/MapView'
 export default function App() {
   return (
     <Router>
-      <Navbar />
       <Routes>
         <Route path="/" element={<Search />} />
         <Route path="/property/:id" element={<PropertyDetails />} />
